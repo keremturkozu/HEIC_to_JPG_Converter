@@ -8,6 +8,15 @@ struct PremiumView: View {
     @State private var pulseAnimation: Bool = false
     @State private var starsAnimation: Bool = false
     @State private var isLoading: Bool = false
+    @State private var scrollOffset: CGFloat = 0
+    
+    let canDismiss: Bool
+    let onDismiss: (() -> Void)?
+    
+    init(canDismiss: Bool = true, onDismiss: (() -> Void)? = nil) {
+        self.canDismiss = canDismiss
+        self.onDismiss = onDismiss
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -43,10 +52,20 @@ struct PremiumView: View {
                     value: pulseAnimation
                 )
                 
+                // Fixed header overlay
+                VStack {
+                    fixedHeaderSection
+                    Spacer()
+                }
+                .zIndex(10)
+                
                 ScrollView {
                     VStack(spacing: 30) {
-                        // Header section
-                        headerSection
+                        // Space for fixed header
+                        Color.clear.frame(height: 80)
+                        
+                        // Header section (without close button)
+                        headerContentSection
                         
                         // Rating and social proof
                         socialProofSection
@@ -63,12 +82,26 @@ struct PremiumView: View {
                         // Action button
                         subscribeButton
                         
+                        // Continue with free version option
+                        if canDismiss {
+                            freeVersionButton
+                        }
+                        
                         // Legal links
                         legalSection
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 20)
                     .padding(.bottom, 40)
+                }
+                .background(
+                    GeometryReader { scrollGeometry in
+                        Color.clear
+                            .preference(key: ScrollOffsetPreferenceKey.self, value: scrollGeometry.frame(in: .named("scroll")).minY)
+                    }
+                )
+                .coordinateSpace(name: "scroll")
+                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                    scrollOffset = value
                 }
             }
         }
@@ -83,77 +116,115 @@ struct PremiumView: View {
         }
     }
     
-    private var headerSection: some View {
-        VStack(spacing: 20) {
-            HStack {
+    private var fixedHeaderSection: some View {
+        HStack {
+            if canDismiss {
                 Button(action: {
+                    onDismiss?()
                     dismiss()
                 }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 44, height: 44)
+                    ZStack {
+                        Circle()
+                            .fill(Color.black.opacity(0.6))
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.1),
+                                                Color.purple.opacity(0.2)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
                 }
-                
-                Spacer()
             }
             
-            VStack(spacing: 16) {
-                // Premium icon
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.purple.opacity(0.3), Color.pink.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 15)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.9),
+                    Color.black.opacity(0.7),
+                    Color.clear
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+    }
+    
+    private var headerContentSection: some View {
+        VStack(spacing: 16) {
+            // Premium icon
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.purple.opacity(0.3), Color.pink.opacity(0.2)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                        .frame(width: 100, height: 100)
-                        .blur(radius: 20)
-                    
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.purple, Color.pink],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 80, height: 80)
-                        .shadow(color: .purple.opacity(0.3), radius: 10, x: 0, y: 5)
-                    
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.white)
-                        .scaleEffect(starsAnimation ? 1.1 : 1.0)
-                        .animation(
-                            Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true),
-                            value: starsAnimation
-                        )
-                }
+                    )
+                    .frame(width: 100, height: 100)
+                    .blur(radius: 20)
                 
-                VStack(spacing: 8) {
-                    Text("HEIC Converter")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.white, Color.purple.opacity(0.9)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.purple, Color.pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                    
-                    Text("Premium")
-                        .font(.system(size: 32, weight: .black))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.purple, Color.pink],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                    )
+                    .frame(width: 80, height: 80)
+                    .shadow(color: .purple.opacity(0.3), radius: 10, x: 0, y: 5)
+                
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(.white)
+                    .scaleEffect(starsAnimation ? 1.1 : 1.0)
+                    .animation(
+                        Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true),
+                        value: starsAnimation
+                    )
+            }
+            
+            VStack(spacing: 8) {
+                Text("HEIC Converter")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.white, Color.purple.opacity(0.9)],
+                            startPoint: .leading,
+                            endPoint: .trailing
                         )
-                }
+                    )
+                
+                Text("Premium")
+                    .font(.system(size: 32, weight: .black))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.purple, Color.pink],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
             }
         }
     }
@@ -270,6 +341,7 @@ struct PremiumView: View {
                     do {
                         if try await storeManager.purchase(product) != nil {
                             // Purchase successful
+                            onDismiss?()
                             dismiss()
                         }
                     } catch {
@@ -323,12 +395,40 @@ struct PremiumView: View {
         .disabled(selectedProduct == nil || isLoading)
     }
     
+    private var freeVersionButton: some View {
+        Button(action: {
+            onDismiss?()
+            dismiss()
+        }) {
+            HStack(spacing: 0) {
+                Text("Continue with Free Version")
+                    .font(.system(size: 16, weight: .semibold))
+                
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundColor(.white.opacity(0.8))
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.05))
+                    )
+            )
+        }
+        .padding(.top, 0)
+    }
+    
     private var legalSection: some View {
         VStack(spacing: 16) {
             Button("Restore Purchases") {
                 Task {
                     await storeManager.restorePurchases()
                     if storeManager.isSubscribed {
+                        onDismiss?()
                         dismiss()
                     }
                 }
@@ -350,7 +450,7 @@ struct PremiumView: View {
                 .foregroundColor(.gray)
             }
         }
-        .padding(.top, 20)
+        .padding(.top, 0)
     }
 }
 
@@ -641,6 +741,18 @@ private let premiumFeatures: [PremiumFeature] = [
     PremiumFeature(icon: "xmark.circle", title: "No Ads", description: "Enjoy distraction-free experience")
 ]
 
+// MARK: - Scroll Offset Preference Key
+
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+
+
 #Preview {
-    PremiumView()
+    PremiumView(canDismiss: true, onDismiss: nil)
 } 

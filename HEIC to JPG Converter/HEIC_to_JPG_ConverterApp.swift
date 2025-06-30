@@ -35,8 +35,12 @@ struct HEIC_to_JPG_ConverterApp: App {
                         .transition(.opacity)
                 } else {
                     if shouldShowPremium {
-                        PremiumView()
-                            .transition(.opacity)
+                        PremiumView(canDismiss: true) {
+                            withAnimation {
+                                shouldShowPremium = false
+                            }
+                        }
+                        .transition(.opacity)
                     } else {
                         ContentView()
                             .transition(.opacity)
